@@ -39,6 +39,18 @@
             50% { opacity: 1; }
         }
 
+        /* --- Fade to Black Overlay --- */
+        #fade-overlay {
+            position: fixed;
+            top: 0; left: 0;
+            width: 100vw; height: 100vh;
+            background-color: #000;
+            opacity: 0;
+            pointer-events: none;
+            z-index: 900;
+            transition: opacity 3s ease-in-out;
+        }
+
         /* --- Image Layers --- */
         #intro-container { position: relative; width: 100vw; height: 100vh; }
         .bg-image {
@@ -166,7 +178,7 @@
             stroke-width: 3;
             stroke-dasharray: 113; /* Circumference of r=18 (2 * PI * 18) */
             stroke-dashoffset: 113;
-            transition: stroke-dashoffset 2s linear; /* Updated to 2s to match the audio */
+            transition: stroke-dashoffset 2s linear; 
         }
 
         #skip-container.holding .skip-circle-progress {
@@ -203,6 +215,7 @@
     </div>
 
     <div id="vhs-overlay"></div>
+    <div id="fade-overlay"></div>
 
     <script>
         const images = [
@@ -223,10 +236,12 @@
         const skipContainer = document.getElementById('skip-container');
         const bgAmbience = document.getElementById('bg-ambience');
         const skipRiser = document.getElementById('skip-riser');
+        const fadeOverlay = document.getElementById('fade-overlay');
         
         let activeLayer = 1;
         let currentPart = 0;
         let sequenceTimers = [];
+        let ambienceFadeInterval;
 
         // --- Start Logic ---
         document.getElementById('start-screen').addEventListener('click', function() {
@@ -234,6 +249,7 @@
             setTimeout(() => this.remove(), 1000);
 
             // Play Background Ambience
+            bgAmbience.volume = 1;
             bgAmbience.play().catch(e => console.log("Ambience block:", e));
 
             // Initialize first image and start sequence
@@ -250,11 +266,30 @@
 
         function showText(index) {
             if (index >= storyParts.length) {
-                // End of story, go to title
-                let endTimer = setTimeout(() => {
+                // End of story - Fade to black and redirect
+                let fadeTimer = setTimeout(() => {
+                    fadeOverlay.style.opacity = '1';
+                    
+                    // Fade out ambience smoothly
+                    let vol = bgAmbience.volume;
+                    const fadeAudio = setInterval(() => {
+                        if (vol > 0.05) {
+                            vol -= 0.05;
+                            bgAmbience.volume = vol;
+                        } else {
+                            bgAmbience.volume = 0;
+                            bgAmbience.pause();
+                            clearInterval(fadeAudio);
+                        }
+                    }, 200);
+
+                }, 1000); // Wait 1 second after text fades out before fading to black
+
+                let redirectTimer = setTimeout(() => {
                     window.location.href = 'title.html';
-                }, 4000);
-                sequenceTimers.push(endTimer);
+                }, 5000); // Wait for fade overlay to finish (1s + 3s transition)
+                
+                sequenceTimers.push(fadeTimer, redirectTimer);
                 return;
             }
 
@@ -271,16 +306,16 @@
             }, 500);
             sequenceTimers.push(fadeInTimer);
 
-            // Fade out text after 6 seconds total
+            // Fade out text after 8.5 seconds total (Added 2 extra seconds for readability!)
             let fadeOutTimer = setTimeout(() => {
                 textElement.style.opacity = '0';
-            }, 6500);
+            }, 8500); 
             sequenceTimers.push(fadeOutTimer);
 
             // Trigger next part
             let nextPartTimer = setTimeout(() => {
                 showText(index + 1);
-            }, 8000); // 8 seconds per part
+            }, 10000); // 10 seconds per part (was 8s)
             sequenceTimers.push(nextPartTimer);
         }
 
@@ -300,6 +335,35 @@
             }
         }
 
+        // --- Audio Fade Logic for Skipping ---
+        function fadeOutAmbience() {
+            clearInterval(ambienceFadeInterval);
+            let vol = bgAmbience.volume;
+            ambienceFadeInterval = setInterval(() => {
+                if (vol > 0.1) {
+                    vol -= 0.1;
+                    bgAmbience.volume = vol;
+                } else {
+                    bgAmbience.volume = 0;
+                    clearInterval(ambienceFadeInterval);
+                }
+            }, 100); // Fades to 0 in 1 second
+        }
+
+        function fadeInAmbience() {
+            clearInterval(ambienceFadeInterval);
+            let vol = bgAmbience.volume;
+            ambienceFadeInterval = setInterval(() => {
+                if (vol < 0.9) {
+                    vol += 0.1;
+                    bgAmbience.volume = vol;
+                } else {
+                    bgAmbience.volume = 1;
+                    clearInterval(ambienceFadeInterval);
+                }
+            }, 100);
+        }
+
         // --- Hold to Skip Logic ---
         const holdTime = 2000; // Exactly 2 seconds to match the riser audio
         let skipTimer;
@@ -307,6 +371,9 @@
         function startSkip() {
             skipContainer.classList.add('holding');
             
+            // Fade out ambience so the riser is clear
+            fadeOutAmbience();
+
             // Play the riser sound
             skipRiser.currentTime = 0;
             skipRiser.play().catch(e => console.log("Riser block:", e));
@@ -322,6 +389,9 @@
             // Stop the riser sound if they let go early
             skipRiser.pause();
             skipRiser.currentTime = 0;
+            
+            // Fade ambience back in
+            fadeInAmbience();
             
             clearTimeout(skipTimer);
         }
