@@ -1,0 +1,319 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Story Intro - Five Nights at the Black House</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { 
+            background-color: #000; 
+            color: #fff; 
+            font-family: 'Courier New', Courier, monospace; 
+            overflow: hidden; 
+            user-select: none;
+        }
+
+        /* --- Start Screen (Required for browser audio) --- */
+        #start-screen {
+            position: fixed;
+            top: 0; left: 0;
+            width: 100vw; height: 100vh;
+            background-color: #000;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+            cursor: pointer;
+            transition: opacity 1s ease-in-out;
+        }
+
+        #start-text {
+            font-size: 1.5rem;
+            color: #aaa;
+            animation: slowPulse 2s infinite;
+        }
+
+        @keyframes slowPulse {
+            0%, 100% { opacity: 0.3; }
+            50% { opacity: 1; }
+        }
+
+        /* --- Image Layers --- */
+        #intro-container { position: relative; width: 100vw; height: 100vh; }
+        .bg-image {
+            position: absolute;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            background-size: cover;
+            background-position: center;
+            opacity: 0;
+            transition: opacity 2s ease-in-out;
+            transform: scale(1);
+            animation: slowZoom 15s linear infinite alternate;
+        }
+        .bg-image.active { opacity: 0.8; }
+
+        @keyframes slowZoom {
+            0% { transform: scale(1); }
+            100% { transform: scale(1.1); }
+        }
+
+        /* --- VHS Grain & Scanline Filter --- */
+        #vhs-overlay {
+            position: fixed;
+            top: 0; left: 0; width: 100vw; height: 100vh;
+            pointer-events: none;
+            z-index: 50;
+            mix-blend-mode: overlay;
+        }
+
+        /* Scanlines */
+        #vhs-overlay::before {
+            content: '';
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: repeating-linear-gradient(
+                0deg, 
+                rgba(0, 0, 0, 0.3), 
+                rgba(0, 0, 0, 0.3) 1px, 
+                transparent 1px, 
+                transparent 3px
+            );
+            opacity: 0.6;
+        }
+
+        /* Grain Noise */
+        #vhs-overlay::after {
+            content: '';
+            position: absolute;
+            top: -50%; left: -50%; width: 200%; height: 200%;
+            background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E");
+            opacity: 0.15;
+            animation: grainShift 0.2s steps(2) infinite;
+        }
+
+        @keyframes grainShift {
+            0% { transform: translate(0, 0); }
+            50% { transform: translate(-5%, 5%); }
+            100% { transform: translate(5%, -5%); }
+        }
+
+        /* --- Text Box --- */
+        #text-box {
+            position: absolute;
+            top: 50%; 
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 70%;
+            max-width: 800px;
+            text-align: center;
+            z-index: 100;
+        }
+
+        #story-text {
+            font-size: 1.6rem;
+            line-height: 1.6;
+            text-shadow: 2px 2px 4px #000, 0 0 15px #000;
+            opacity: 0;
+            transition: opacity 1.5s ease-in-out;
+        }
+
+        /* --- Hold to Skip UI --- */
+        #skip-container {
+            position: absolute;
+            bottom: 40px;
+            right: 50px;
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            z-index: 200;
+            cursor: pointer;
+            opacity: 0;
+            transition: opacity 1s ease-in-out;
+        }
+
+        #skip-container.visible { opacity: 1; }
+
+        #skip-text {
+            font-size: 1.2rem;
+            color: #aaa;
+            letter-spacing: 2px;
+            transition: color 0.2s, text-shadow 0.2s;
+        }
+
+        #skip-container:hover #skip-text {
+            color: #fff;
+            text-shadow: 0 0 10px #fff;
+        }
+
+        /* SVG Circle Fill */
+        .skip-circle {
+            width: 40px;
+            height: 40px;
+            transform: rotate(-90deg);
+        }
+
+        .skip-circle-bg {
+            fill: none;
+            stroke: rgba(255, 255, 255, 0.2);
+            stroke-width: 3;
+        }
+
+        .skip-circle-progress {
+            fill: none;
+            stroke: #fff;
+            stroke-width: 3;
+            stroke-dasharray: 113; /* Circumference of r=18 (2 * PI * 18) */
+            stroke-dashoffset: 113;
+            transition: stroke-dashoffset 1.5s linear;
+        }
+
+        #skip-container.holding .skip-circle-progress {
+            stroke-dashoffset: 0;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Start Screen to bypass audio restrictions -->
+    <div id="start-screen">
+        <div id="start-text">[Click anywhere to start]</div>
+    </div>
+
+    <div id="intro-container">
+        <div id="layer1" class="bg-image active"></div>
+        <div id="layer2" class="bg-image"></div>
+        
+        <div id="text-box">
+            <p id="story-text"></p>
+        </div>
+
+        <div id="skip-container">
+            <span id="skip-text">HOLD TO SKIP</span>
+            <svg class="skip-circle" viewBox="0 0 40 40">
+                <circle class="skip-circle-bg" cx="20" cy="20" r="18"></circle>
+                <circle class="skip-circle-progress" cx="20" cy="20" r="18"></circle>
+            </svg>
+        </div>
+    </div>
+
+    <div id="vhs-overlay"></div>
+
+    <script>
+        const images = [
+            'Tehran.jpg', 
+            'SE3EN.jpg',  
+            'uNk5K.jpg'   
+        ];
+        
+        const storyParts = [
+            "The endless War of Tehran in the deserts of Irun pushed the Conjoined Republics of America to its breaking point, as the immense pressure and exhaustion of the conflict left the nation's citizens physically sick and psychologically vulnerable.",
+            "In their weakened state, the population fell victim to the sudden Liberalist Outbreak, a bizarre virus that mutated once-loyal patriots into mindless, zombie-like anarchists, causing the capital city to rapidly collapse into total, screaming anarchy.",
+            "Deep within the fortified walls of the Black House, Donald Rump, the resilient leader of the Republics, barricades himself inside the Treasury alongside Stephan Hawkering, the brilliant lead scientist frantically working to synthesize the Anti-Liberal vaccine to save what remains of humanity."
+        ];
+
+        const layer1 = document.getElementById('layer1');
+        const layer2 = document.getElementById('layer2');
+        const textElement = document.getElementById('story-text');
+        const skipContainer = document.getElementById('skip-container');
+        
+        let activeLayer = 1;
+        let currentPart = 0;
+        let sequenceTimers = [];
+
+        // --- Start Logic ---
+        document.getElementById('start-screen').addEventListener('click', function() {
+            this.style.opacity = '0';
+            setTimeout(() => this.remove(), 1000);
+
+            // Initialize first image and start sequence
+            layer1.style.backgroundImage = `url('${images[0]}')`;
+            skipContainer.classList.add('visible');
+            
+            // Start showing text parts
+            runSequence();
+        }, { once: true });
+
+        function runSequence() {
+            showText(0);
+        }
+
+        function showText(index) {
+            if (index >= storyParts.length) {
+                // End of story, go to title
+                let endTimer = setTimeout(() => {
+                    window.location.href = 'title.html';
+                }, 4000);
+                sequenceTimers.push(endTimer);
+                return;
+            }
+
+            // Change background image mid-text fade out
+            let imgTimer = setTimeout(() => {
+                changeImage(index);
+            }, 2500);
+            sequenceTimers.push(imgTimer);
+
+            // Fade in text
+            textElement.innerText = storyParts[index];
+            let fadeInTimer = setTimeout(() => {
+                textElement.style.opacity = '1';
+            }, 500);
+            sequenceTimers.push(fadeInTimer);
+
+            // Fade out text after 6 seconds total
+            let fadeOutTimer = setTimeout(() => {
+                textElement.style.opacity = '0';
+            }, 6500);
+            sequenceTimers.push(fadeOutTimer);
+
+            // Trigger next part
+            let nextPartTimer = setTimeout(() => {
+                showText(index + 1);
+            }, 8000); // 8 seconds per part
+            sequenceTimers.push(nextPartTimer);
+        }
+
+        function changeImage(index) {
+            const nextImageUrl = `url('${images[index]}')`;
+            
+            if (activeLayer === 1) {
+                layer2.style.backgroundImage = nextImageUrl;
+                layer2.classList.add('active');
+                layer1.classList.remove('active');
+                activeLayer = 2;
+            } else {
+                layer1.style.backgroundImage = nextImageUrl;
+                layer1.classList.add('active');
+                layer2.classList.remove('active');
+                activeLayer = 1;
+            }
+        }
+
+        // --- Hold to Skip Logic ---
+        const holdTime = 1500; // 1.5 seconds to skip
+        let skipTimer;
+
+        function startSkip() {
+            skipContainer.classList.add('holding');
+            skipTimer = setTimeout(() => {
+                window.location.href = 'title.html';
+            }, holdTime);
+        }
+
+        function cancelSkip() {
+            skipContainer.classList.remove('holding');
+            clearTimeout(skipTimer);
+        }
+
+        // Mouse events
+        skipContainer.addEventListener('mousedown', startSkip);
+        window.addEventListener('mouseup', cancelSkip);
+        
+        // Touch events for mobile
+        skipContainer.addEventListener('touchstart', (e) => { e.preventDefault(); startSkip(); }, { passive: false });
+        window.addEventListener('touchend', cancelSkip);
+    </script>
+</body>
+</html>
