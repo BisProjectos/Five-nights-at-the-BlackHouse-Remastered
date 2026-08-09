@@ -1,1 +1,338 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Title Screen - Five Nights at the Black House</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { 
+            background-color: #000; 
+            color: #fff; 
+            font-family: 'Courier New', Courier, monospace; 
+            overflow: hidden; 
+            user-select: none; 
+        }
 
+        /* --- Start Screen (Audio Unlock) --- */
+        #start-screen {
+            position: fixed;
+            top: 0; left: 0;
+            width: 100vw; height: 100vh;
+            background-color: #000;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+            cursor: pointer;
+            transition: opacity 1s ease-in-out;
+        }
+        #start-text {
+            font-size: 1.5rem;
+            color: #aaa;
+            animation: slowPulse 2s infinite;
+        }
+        @keyframes slowPulse {
+            0%, 100% { opacity: 0.3; }
+            50% { opacity: 1; }
+        }
+
+        /* --- Background & Animations --- */
+        #bg-container {
+            position: absolute;
+            top: 0; left: 0; width: 100vw; height: 100vh;
+            background-image: url('TitleAssets/title.jpg'); 
+            background-size: cover;
+            background-position: center;
+            opacity: 0;
+            animation: fadeIn 2s forwards, zoomBlur 10s ease-in-out infinite alternate;
+            z-index: 1;
+        }
+
+        @keyframes fadeIn { to { opacity: 1; } }
+
+        @keyframes zoomBlur {
+            0% { transform: scale(1); filter: blur(0px); }
+            50% { transform: scale(1.05); filter: blur(1px); }
+            100% { transform: scale(1); filter: blur(0px); }
+        }
+
+        /* JS adds a class for the random shake */
+        #bg-container.shake {
+            animation: fadeIn 2s forwards, zoomBlur 10s ease-in-out infinite alternate, vhsShake 0.4s ease-in-out;
+        }
+
+        @keyframes vhsShake {
+            0%, 100% { transform: scale(1.05) translate(0, 0); }
+            25% { transform: scale(1.05) translate(-3px, 2px); }
+            50% { transform: scale(1.05) translate(2px, -3px); }
+            75% { transform: scale(1.05) translate(-2px, -2px); }
+        }
+
+        /* --- VHS Overlay --- */
+        #vhs-overlay {
+            position: fixed;
+            top: 0; left: 0; width: 100vw; height: 100vh;
+            pointer-events: none;
+            z-index: 50;
+            mix-blend-mode: overlay;
+        }
+        #vhs-overlay::before {
+            content: '';
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: repeating-linear-gradient(0deg, rgba(0,0,0,0.3), rgba(0,0,0,0.3) 1px, transparent 1px, transparent 3px);
+            opacity: 0.6;
+        }
+        #vhs-overlay::after {
+            content: '';
+            position: absolute;
+            top: -50%; left: -50%; width: 200%; height: 200%;
+            background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E");
+            opacity: 0.15;
+            animation: grainShift 0.2s steps(2) infinite;
+        }
+        @keyframes grainShift {
+            0% { transform: translate(0, 0); }
+            50% { transform: translate(-5%, 5%); }
+            100% { transform: translate(5%, -5%); }
+        }
+
+        /* --- UI Layer --- */
+        #ui-layer {
+            position: absolute;
+            top: 0; left: 0; width: 100vw; height: 100vh;
+            z-index: 100;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            text-align: center;
+        }
+
+        h1 {
+            font-size: 4rem;
+            line-height: 1.1;
+            text-shadow: 4px 4px 8px #000, 0 0 20px rgba(255, 255, 255, 0.2);
+            margin-bottom: 60px;
+            color: #fff;
+        }
+
+        .menu-container {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+            align-items: center;
+        }
+
+        .menu-btn {
+            background: rgba(20, 20, 20, 0.6);
+            backdrop-filter: blur(4px);
+            color: #fff;
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            padding: 15px 40px;
+            font-size: 1.5rem;
+            font-family: inherit;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            text-shadow: 2px 2px 4px #000;
+            min-width: 300px;
+            letter-spacing: 2px;
+        }
+
+        .menu-btn:hover {
+            background: rgba(255, 255, 255, 0.1);
+            border-color: #fff;
+            box-shadow: 0 0 15px rgba(255, 255, 255, 0.2);
+            transform: translateY(-2px);
+        }
+
+        .menu-btn.disabled {
+            color: #555;
+            border-color: #333;
+            background: rgba(10, 10, 10, 0.6);
+            cursor: not-allowed;
+            text-shadow: none;
+        }
+        .menu-btn.disabled:hover {
+            transform: none;
+            box-shadow: none;
+        }
+
+        /* Hidden by default */
+        #night-selection-menu { display: none; }
+        
+        h2.menu-subtitle {
+            font-size: 2rem;
+            margin-bottom: 20px;
+            text-shadow: 2px 2px 4px #000;
+        }
+
+        .back-btn {
+            color: #ff5555;
+            border-color: rgba(255, 85, 85, 0.3);
+            margin-top: 10px;
+        }
+        .back-btn:hover {
+            border-color: #ff5555;
+            box-shadow: 0 0 15px rgba(255, 85, 85, 0.2);
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Audio Elements -->
+    <audio id="bg-music" src="TitleAssets/dragon-studio-halloween-creepy-basement-511329.mp3" loop></audio>
+    <audio id="click-sfx" src="TitleAssets/emilianodleon-select-button-ui-395763.mp3"></audio>
+
+    <!-- Start Screen -->
+    <div id="start-screen">
+        <div id="start-text">[Click anywhere to enter]</div>
+    </div>
+
+    <div id="bg-container"></div>
+    <div id="vhs-overlay"></div>
+
+    <div id="ui-layer">
+        <h1>FIVE NIGHTS<br>AT THE BLACK HOUSE</h1>
+
+        <!-- Main Menu -->
+        <div id="main-menu" class="menu-container">
+            <button class="menu-btn" id="btn-new-game" onclick="startMainGame()">New Game</button>
+            <button class="menu-btn" onclick="showNightMenu()">Nights</button>
+            <button class="menu-btn" onclick="playClick()">Credits</button>
+        </div>
+
+        <!-- Night Selection Menu -->
+        <div id="night-selection-menu" class="menu-container">
+            <h2 class="menu-subtitle">SELECT NIGHT</h2>
+            <button class="menu-btn" id="btn-night1" onclick="selectNight(1)">Night 1</button>
+            <button class="menu-btn disabled" id="btn-night2" onclick="selectNight(2)">Night 2</button>
+            <button class="menu-btn disabled" id="btn-night3" onclick="selectNight(3)">Night 3</button>
+            <button class="menu-btn disabled" id="btn-night4" onclick="selectNight(4)">Night 4</button>
+            <button class="menu-btn disabled" id="btn-night5" onclick="selectNight(5)">Night 5</button>
+            <button class="menu-btn back-btn" onclick="showMainMenu()">[ Back ]</button>
+        </div>
+    </div>
+
+    <script>
+        // --- Save Data System ---
+        let gameProgress = {
+            Night1done: 0, Night2done: 0, Night3done: 0, Night4done: 0, Night5done: 0
+        };
+
+        function loadGame() {
+            const saved = localStorage.getItem('fnafBlackHouseSave');
+            if (saved) {
+                gameProgress = JSON.parse(saved);
+            }
+        }
+
+        function saveGame() {
+            localStorage.setItem('fnafBlackHouseSave', JSON.stringify(gameProgress));
+        }
+
+        function getCurrentNight() {
+            if (gameProgress.Night5done === 1) return 6; // Game beaten
+            if (gameProgress.Night4done === 1) return 5;
+            if (gameProgress.Night3done === 1) return 4;
+            if (gameProgress.Night2done === 1) return 3;
+            if (gameProgress.Night1done === 1) return 2;
+            return 1; // Default
+        }
+
+        // --- UI Logic ---
+        function updateMenuUI() {
+            const currentNight = getCurrentNight();
+            const newGameBtn = document.getElementById('btn-new-game');
+
+            // Update New Game Button Text
+            if (currentNight > 1 && currentNight <= 5) {
+                newGameBtn.innerText = `Continue Night ${currentNight}`;
+            } else if (currentNight === 6) {
+                newGameBtn.innerText = "New Game+"; // Or "Play Again"
+            } else {
+                newGameBtn.innerText = "New Game";
+            }
+
+            // Unlock Night Buttons
+            for (let i = 1; i <= 5; i++) {
+                const btn = document.getElementById(`btn-night${i}`);
+                // Unlock if the previous night is done (or it's night 1)
+                if (i === 1 || gameProgress[`Night${i-1}done`] === 1) {
+                    btn.classList.remove('disabled');
+                } else {
+                    btn.classList.add('disabled');
+                }
+            }
+        }
+
+        function startMainGame() {
+            playClick();
+            const night = getCurrentNight();
+            // If they beat the game, let them replay Night 5 or start over. Let's default to Night 1.
+            const targetNight = night === 6 ? 1 : night;
+            window.location.href = `nights/night${targetNight}.html`; // Sends to night1.html, night2.html etc.
+        }
+
+        function showNightMenu() {
+            playClick();
+            document.getElementById('main-menu').style.display = 'none';
+            document.getElementById('night-selection-menu').style.display = 'flex';
+        }
+
+        function showMainMenu() {
+            playClick();
+            document.getElementById('night-selection-menu').style.display = 'none';
+            document.getElementById('main-menu').style.display = 'flex';
+        }
+
+        function selectNight(night) {
+            const btn = document.getElementById(`btn-night${night}`);
+            if (btn.classList.contains('disabled')) {
+                return; // Do nothing if locked
+            }
+            playClick();
+            // Redirect to the night file
+            window.location.href = `nights/night${night}.html`;
+        }
+
+        // --- Audio Logic ---
+        function playClick() {
+            const sfx = document.getElementById('click-sfx');
+            sfx.currentTime = 0;
+            sfx.play().catch(e => console.log("SFX blocked:", e));
+        }
+
+        // --- VHS Shake Logic ---
+        function triggerRandomShake() {
+            const bg = document.getElementById('bg-container');
+            bg.classList.add('shake');
+            setTimeout(() => bg.classList.remove('shake'), 400); // Shake duration
+            
+            // Random time between 4s and 6s
+            const nextShakeIn = Math.random() * 2000 + 4000;
+            setTimeout(triggerRandomShake, nextShakeIn);
+        }
+
+        // --- Initialization ---
+        document.getElementById('start-screen').addEventListener('click', function() {
+            // Play music
+            const music = document.getElementById('bg-music');
+            music.volume = 0.4; // Slightly quiet
+            music.play().catch(e => console.log("Music block:", e));
+
+            // Fade out start screen
+            this.style.opacity = '0';
+            setTimeout(() => this.remove(), 1000);
+
+            // Start the random shaking
+            setTimeout(triggerRandomShake, 3000);
+        }, { once: true });
+
+        // Load data on script load
+        loadGame();
+        updateMenuUI();
+    </script>
+</body>
+</html>
