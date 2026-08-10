@@ -1,0 +1,269 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Night 1 Intro - Five Nights at the Black House</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { 
+            background-color: #000; 
+            color: #fff; 
+            font-family: 'Courier New', Courier, monospace; 
+            overflow: hidden; 
+            user-select: none;
+        }
+
+        /* --- Start Screen (Audio Unlock) --- */
+        #start-screen {
+            position: fixed;
+            top: 0; left: 0;
+            width: 100vw; height: 100vh;
+            background-color: #000;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+            cursor: pointer;
+            transition: opacity 1s ease-in-out;
+        }
+        #start-text {
+            font-size: 1.5rem;
+            color: #aaa;
+            animation: slowPulse 2s infinite;
+        }
+        @keyframes slowPulse {
+            0%, 100% { opacity: 0.3; }
+            50% { opacity: 1; }
+        }
+
+        /* --- VHS Grain & Scanline Filter --- */
+        #vhs-overlay {
+            position: fixed;
+            top: 0; left: 0; width: 100vw; height: 100vh;
+            pointer-events: none;
+            z-index: 50;
+            mix-blend-mode: overlay;
+        }
+        #vhs-overlay::before {
+            content: '';
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: repeating-linear-gradient(0deg, rgba(0,0,0,0.3), rgba(0,0,0,0.3) 1px, transparent 1px, transparent 3px);
+            opacity: 0.6;
+        }
+        #vhs-overlay::after {
+            content: '';
+            position: absolute;
+            top: -50%; left: -50%; width: 200%; height: 200%;
+            background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E");
+            opacity: 0.1; /* Slightly less grain for a pure black screen */
+            animation: grainShift 0.2s steps(2) infinite;
+        }
+        @keyframes grainShift {
+            0% { transform: translate(0, 0); }
+            50% { transform: translate(-5%, 5%); }
+            100% { transform: translate(5%, -5%); }
+        }
+
+        /* --- Text Box --- */
+        #text-box {
+            position: absolute;
+            top: 50%; 
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 70%;
+            max-width: 800px;
+            text-align: center;
+            z-index: 100;
+        }
+
+        #story-text {
+            font-size: 2rem;
+            line-height: 1.6;
+            text-shadow: 2px 2px 4px #000, 0 0 15px #000;
+            opacity: 0;
+            transition: opacity 1.5s ease-in-out;
+        }
+
+        /* --- Hold to Skip UI --- */
+        #skip-container {
+            position: absolute;
+            bottom: 40px;
+            right: 50px;
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            z-index: 200;
+            cursor: pointer;
+            opacity: 0;
+            transition: opacity 1s ease-in-out;
+        }
+        #skip-container.visible { opacity: 1; }
+
+        #skip-text {
+            font-size: 1.2rem;
+            color: #aaa;
+            letter-spacing: 2px;
+            transition: color 0.2s, text-shadow 0.2s;
+        }
+        #skip-container:hover #skip-text {
+            color: #fff;
+            text-shadow: 0 0 10px #fff;
+        }
+
+        /* SVG Circle Fill */
+        .skip-circle {
+            width: 40px;
+            height: 40px;
+            transform: rotate(-90deg);
+        }
+        .skip-circle-bg {
+            fill: none;
+            stroke: rgba(255, 255, 255, 0.2);
+            stroke-width: 3;
+        }
+        .skip-circle-progress {
+            fill: none;
+            stroke: #fff;
+            stroke-width: 3;
+            stroke-dasharray: 113;
+            stroke-dashoffset: 113;
+            transition: stroke-dashoffset 2s linear; 
+        }
+        #skip-container.holding .skip-circle-progress {
+            stroke-dashoffset: 0;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Audio Elements (Using relative paths assuming this is in nights/intros/) -->
+    <audio id="bg-ambience" src="../../StorySounds/Ambience (2).mp3" loop></audio>
+    <audio id="skip-riser" src="../../StorySounds/Riser.mp3"></audio>
+
+    <!-- Start Screen -->
+    <div id="start-screen">
+        <div id="start-text">[Click anywhere to start]</div>
+    </div>
+
+    <div id="text-box">
+        <p id="story-text">Do your task before he comes in. He gets angrier for each minute goes by.</p>
+    </div>
+
+    <div id="skip-container">
+        <span id="skip-text">HOLD TO SKIP</span>
+        <svg class="skip-circle" viewBox="0 0 40 40">
+            <circle class="skip-circle-bg" cx="20" cy="20" r="18"></circle>
+            <circle class="skip-circle-progress" cx="20" cy="20" r="18"></circle>
+        </svg>
+    </div>
+
+    <div id="vhs-overlay"></div>
+
+    <script>
+        const textElement = document.getElementById('story-text');
+        const skipContainer = document.getElementById('skip-container');
+        const bgAmbience = document.getElementById('bg-ambience');
+        const skipRiser = document.getElementById('skip-riser');
+        
+        let sequenceTimers = [];
+        let ambienceFadeInterval;
+
+        // --- Start Logic ---
+        document.getElementById('start-screen').addEventListener('click', function() {
+            this.style.opacity = '0';
+            setTimeout(() => this.remove(), 1000);
+
+            // Play Background Ambience
+            bgAmbience.volume = 1;
+            bgAmbience.play().catch(e => console.log("Ambience block:", e));
+
+            skipContainer.classList.add('visible');
+            
+            // Start sequence
+            runSequence();
+        }, { once: true });
+
+        function runSequence() {
+            // Fade in text
+            let fadeInTimer = setTimeout(() => {
+                textElement.style.opacity = '1';
+            }, 500);
+            sequenceTimers.push(fadeInTimer);
+
+            // Fade out text after 6 seconds
+            let fadeOutTimer = setTimeout(() => {
+                textElement.style.opacity = '0';
+            }, 6000);
+            sequenceTimers.push(fadeOutTimer);
+
+            // Redirect to Night 1
+            let redirectTimer = setTimeout(() => {
+                window.location.href = '../night1.html'; // Change to 'night1.html' if in same folder
+            }, 8000);
+            sequenceTimers.push(redirectTimer);
+        }
+
+        // --- Audio Fade Logic for Skipping ---
+        function fadeOutAmbience() {
+            clearInterval(ambienceFadeInterval);
+            let vol = bgAmbience.volume;
+            ambienceFadeInterval = setInterval(() => {
+                if (vol > 0.1) {
+                    vol -= 0.1;
+                    bgAmbience.volume = vol;
+                } else {
+                    bgAmbience.volume = 0;
+                    clearInterval(ambienceFadeInterval);
+                }
+            }, 100);
+        }
+
+        // --- Hold to Skip Logic ---
+        const holdTime = 2000; 
+        let skipTimer;
+
+        function startSkip() {
+            skipContainer.classList.add('holding');
+            fadeOutAmbience();
+
+            skipRiser.currentTime = 0;
+            skipRiser.play().catch(e => console.log("Riser block:", e));
+
+            skipTimer = setTimeout(() => {
+                window.location.href = '../night1.html'; // Change to 'night1.html' if in same folder
+            }, holdTime);
+        }
+
+        function cancelSkip() {
+            skipContainer.classList.remove('holding');
+            skipRiser.pause();
+            skipRiser.currentTime = 0;
+            
+            // Fade ambience back in if they let go
+            clearInterval(ambienceFadeInterval);
+            let vol = bgAmbience.volume;
+            ambienceFadeInterval = setInterval(() => {
+                if (vol < 0.9) {
+                    vol += 0.1;
+                    bgAmbience.volume = vol;
+                } else {
+                    bgAmbience.volume = 1;
+                    clearInterval(ambienceFadeInterval);
+                }
+            }, 100);
+            
+            clearTimeout(skipTimer);
+        }
+
+        // Mouse events
+        skipContainer.addEventListener('mousedown', startSkip);
+        window.addEventListener('mouseup', cancelSkip);
+        
+        // Touch events for mobile
+        skipContainer.addEventListener('touchstart', (e) => { e.preventDefault(); startSkip(); }, { passive: false });
+        window.addEventListener('touchend', cancelSkip);
+    </script>
+</body>
+</html>
