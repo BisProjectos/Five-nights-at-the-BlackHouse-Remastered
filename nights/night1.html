@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+=<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -14,8 +14,8 @@
             user-select: none; 
         }
 
-        /* --- 1. The Panning Office Background --- */
-        #office-container {
+        /* --- 1. The Panning Office Background (Two Layers) --- */
+        .office-layer {
             position: absolute;
             top: 0; left: 0;
             width: 150vw; 
@@ -24,8 +24,10 @@
             background-position: center;
             background-repeat: no-repeat;
             z-index: 1;
-            transition: transform 0.1s ease-out; 
+            transition: transform 0.1s ease-out;
         }
+        #office-bg-1 { opacity: 1; }
+        #office-bg-2 { opacity: 0; }
 
         /* --- 2. Invisible Door Hitboxes --- */
         .door-zone {
@@ -39,46 +41,65 @@
         #left-door-zone { left: 0; }
         #right-door-zone { right: 0; }
 
-        /* --- 3. Hover Bottom UI --- */
-        #bottom-ui {
+        /* --- 3. Separated UI Panels --- */
+        .ui-panel {
             position: absolute;
             bottom: 0;
-            left: 50%;
-            transform: translateX(-50%) translateY(70%);
-            width: 90vw;
-            max-width: 1200px;
             height: 250px;
             background: rgba(10, 10, 10, 0.95);
             border: 2px solid #444;
             border-bottom: none;
-            border-radius: 15px 15px 0 0;
+            border-radius: 2px; /* Sharp corners */
             z-index: 30;
-            display: flex;
-            justify-content: space-between;
-            padding: 20px;
             transition: transform 0.3s ease 0s;
         }
-
-        #bottom-ui:hover {
-            transform: translateX(-50%) translateY(0);
+        .ui-panel:hover {
             transition: transform 0.3s ease 0.2s; 
         }
 
-        .ui-section {
-            flex: 1;
-            border-right: 2px solid #333;
-            padding: 0 20px;
+        /* Left Panel: Tasks */
+        #panel-tasks {
+            left: 0;
+            width: 300px;
+            transform: translateY(70%);
+            padding: 20px;
             display: flex;
             flex-direction: column;
             align-items: center;
         }
-        .ui-section:last-child { border-right: none; }
+        #panel-tasks:hover { transform: translateY(0); }
+
+        /* Right Panel: Controls */
+        #panel-controls {
+            right: 0;
+            width: 300px;
+            transform: translateY(70%);
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        #panel-controls:hover { transform: translateY(0); }
+
+        /* Middle Bar: Cameras */
+        #bar-cameras {
+            left: 50%;
+            transform: translateX(-50%) translateY(70%);
+            width: 150px;
+            background: #1a1a1a;
+            cursor: pointer;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+        }
+        #bar-cameras:hover { transform: translateX(-50%) translateY(0); }
 
         .section-title {
-            font-size: 1.2rem;
+            font-size: 1rem;
             color: #888;
             letter-spacing: 3px;
-            margin-bottom: 15px;
+            margin-bottom: 20px;
             text-transform: uppercase;
         }
 
@@ -87,6 +108,7 @@
             background: #222;
             color: #ccc;
             border: 2px solid #555;
+            border-radius: 2px; /* Sharp corners */
             padding: 12px;
             margin-bottom: 10px;
             font-family: inherit;
@@ -95,7 +117,7 @@
             cursor: pointer;
             transition: 0.2s;
             width: 100%;
-            min-width: 200px;
+            min-width: 220px;
             text-align: center;
         }
         .sys-btn:hover {
@@ -109,59 +131,42 @@
             pointer-events: none;
         }
 
-        #btn-cams {
-            background: #2a2a00;
-            border-color: #555500;
-            color: #ffff00;
-        }
-        #btn-cams:hover {
-            background: #444400;
-            border-color: #ffffaa;
-        }
-
-        /* --- Breaker Switch (Lights) --- */
-        .breaker-container {
+        /* --- 4-Bar Breaker Switch --- */
+        .breaker-grid {
             display: flex;
-            flex-direction: column;
-            align-items: center;
             gap: 15px;
             margin-top: 10px;
         }
-        .breaker-label {
-            font-size: 1rem;
-            font-weight: bold;
-            color: #ffbb00;
-            letter-spacing: 2px;
-        }
-        .breaker-track {
-            width: 50px;
-            height: 90px;
+        .breaker-bar {
+            width: 40px;
+            height: 100px;
             background: #111;
             border: 2px solid #333;
-            border-radius: 5px;
+            border-radius: 2px;
             position: relative;
             cursor: pointer;
-            transition: background 0.2s;
         }
-        .breaker-track:hover { background: #1a1a1a; }
-        
         .breaker-handle {
-            width: 40px;
-            height: 40px;
-            background: #555;
-            border: 2px solid #777;
-            border-radius: 3px;
+            width: 32px;
+            height: 30px;
+            background: #ffbb00;
+            border-radius: 2px;
             position: absolute;
             top: 5px;
             left: 50%;
             transform: translateX(-50%);
-            transition: top 0.2s ease, background 0.2s;
+            transition: top 0.15s ease, background 0.15s;
         }
-        /* When lights are off, handle moves down */
-        .breaker-track.off .breaker-handle {
-            top: 45px;
+        /* When a bar is pulled down */
+        .breaker-bar.off .breaker-handle {
+            top: 65px;
             background: #444;
-            border-color: #666;
+        }
+        .breaker-label {
+            font-size: 0.8rem;
+            color: #888;
+            margin-top: 15px;
+            letter-spacing: 2px;
         }
 
         /* --- Camera Panel --- */
@@ -246,44 +251,43 @@
 </head>
 <body>
 
-    <div id="office-container"></div>
+    <!-- Two Background Layers to prevent black flashing -->
+    <div id="office-bg-1" class="office-layer"></div>
+    <div id="office-bg-2" class="office-layer"></div>
 
     <!-- Invisible Hitboxes -->
     <div id="left-door-zone" class="door-zone" onclick="toggleDoor('left')"></div>
     <div id="right-door-zone" class="door-zone" onclick="toggleDoor('right')"></div>
 
-    <!-- Bottom UI -->
-    <div id="bottom-ui">
-        <!-- Left Side: Tasks -->
-        <div class="ui-section">
-            <div class="section-title">Tasks</div>
-            <button id="btn-task1" class="sys-btn" onclick="doTask(1)">Deport Liberals (0/5)</button>
-            <button id="btn-task2" class="sys-btn" onclick="doTask(2)">Send Missiles (0/1)</button>
-        </div>
-        
-        <!-- Middle: Cameras -->
-        <div class="ui-section">
-            <div class="section-title">Cameras</div>
-            <button id="btn-cams" class="sys-btn" onclick="toggleCameras()">VIEW CAMERAS</button>
-            <div style="font-size: 0.8rem; color: #555; margin-top: 10px;">[ Press SPACE ]</div>
-        </div>
+    <!-- Left UI: Tasks -->
+    <div id="panel-tasks" class="ui-panel">
+        <div class="section-title">Tasks</div>
+        <button id="btn-task1" class="sys-btn" onclick="doTask(1)">Deport Liberals (0/5)</button>
+        <button id="btn-task2" class="sys-btn" onclick="doTask(2)">Send Missiles (0/1)</button>
+    </div>
 
-        <!-- Right Side: Controls -->
-        <div class="ui-section">
-            <div class="section-title">Controls</div>
-            <div class="breaker-container">
-                <div class="breaker-label" id="breaker-label">LIGHTS: ON</div>
-                <div class="breaker-track" id="breaker-track" onclick="toggleLights()">
-                    <div class="breaker-handle"></div>
-                </div>
-            </div>
+    <!-- Middle UI: Cameras -->
+    <div id="bar-cameras" class="ui-panel" onclick="toggleCameras()">
+        <div class="section-title">Cams</div>
+        <div style="font-size: 0.7rem; color: #555; writing-mode: vertical-rl; text-orientation: upright; letter-spacing: 3px;">PRESS SPACE</div>
+    </div>
+
+    <!-- Right UI: Controls -->
+    <div id="panel-controls" class="ui-panel">
+        <div class="section-title">Breaker</div>
+        <div class="breaker-grid">
+            <div class="breaker-bar" onclick="toggleBreaker(0)"><div class="breaker-handle"></div></div>
+            <div class="breaker-bar" onclick="toggleBreaker(1)"><div class="breaker-handle"></div></div>
+            <div class="breaker-bar" onclick="toggleBreaker(2)"><div class="breaker-handle"></div></div>
+            <div class="breaker-bar" onclick="toggleBreaker(3)"><div class="breaker-handle"></div></div>
         </div>
+        <div class="breaker-label" id="breaker-label">LIGHTS: ON</div>
     </div>
 
     <!-- Camera Panel -->
     <div id="camera-panel">
         <h1>CAMERA SYSTEM OFFLINE</h1>
-        <p style="color: #555; margin-top: 10px;">[ Press SPACE or click button to close ]</p>
+        <p style="color: #555; margin-top: 10px;">[ Press SPACE or click bar to close ]</p>
     </div>
 
     <!-- Flash & VHS Overlays -->
@@ -296,7 +300,7 @@
     </div>
 
     <script>
-        // --- Preload Images to fix black flash ---
+        // --- Preload Images ---
         const imageNames = [
             "Alldoors-openNormal", "Alldoors-openBlackout",
             "Leftdoor-openNormal", "Leftdoor-openBlackout",
@@ -322,7 +326,14 @@
         let tasksCompleted = 0;
         const totalTasks = 2;
 
-        const officeContainer = document.getElementById('office-container');
+        // Breaker state (4 bars)
+        let breakerStates = [false, false, false, false]; // false = UP (ON), true = DOWN (OFF)
+
+        const layer1 = document.getElementById('office-bg-1');
+        const layer2 = document.getElementById('office-bg-2');
+        let activeLayer = 1;
+        let currentBgUrl = "";
+
         const maxPan = window.innerWidth * 0.5; 
 
         // --- Panning Logic ---
@@ -330,10 +341,12 @@
             if (isCameraOpen) return;
             const percentage = e.clientX / window.innerWidth;
             const panAmount = -(percentage * maxPan);
-            officeContainer.style.transform = `translateX(${panAmount}px)`;
+            // Move both layers so the swap is seamless
+            layer1.style.transform = `translateX(${panAmount}px)`;
+            layer2.style.transform = `translateX(${panAmount}px)`;
         });
 
-        // --- Dynamic Office Image Logic ---
+        // --- Dynamic Office Image Logic (No Flash) ---
         function updateOfficeImage() {
             let baseName = "Alldoors-open";
             
@@ -347,8 +360,23 @@
 
             const lightState = lightsOn ? "Normal" : "Blackout";
             const ext = (baseName === "Alldoors-closed" && lightsOn) ? ".png" : ".jpg";
-            
-            officeContainer.style.backgroundImage = `url('../GameAssets/${baseName}${lightState}${ext}')`;
+            const newUrl = `url('../GameAssets/${baseName}${lightState}${ext}')`;
+
+            if (newUrl === currentBgUrl) return; // Don't swap if nothing changed
+
+            // Load new image into the inactive layer, then swap opacity
+            if (activeLayer === 1) {
+                layer2.style.backgroundImage = newUrl;
+                layer2.style.opacity = '1';
+                layer1.style.opacity = '0';
+                activeLayer = 2;
+            } else {
+                layer1.style.backgroundImage = newUrl;
+                layer1.style.opacity = '1';
+                layer2.style.opacity = '0';
+                activeLayer = 1;
+            }
+            currentBgUrl = newUrl;
         }
 
         // --- Door Logic ---
@@ -361,30 +389,44 @@
             updateOfficeImage();
         }
 
-        // --- Lights Logic ---
-        function toggleLights() {
-            lightsOn = !lightsOn;
+        // --- 4-Bar Breaker Logic ---
+        function toggleBreaker(index) {
+            breakerStates[index] = !breakerStates[index];
             
-            // Update Breaker UI
-            const track = document.getElementById('breaker-track');
-            const label = document.getElementById('breaker-label');
-            if (lightsOn) {
-                track.classList.remove('off');
-                label.innerText = "LIGHTS: ON";
-                label.style.color = "#ffbb00";
+            // Update Visual
+            const bars = document.querySelectorAll('.breaker-bar');
+            if (breakerStates[index]) {
+                bars[index].classList.add('off');
             } else {
-                track.classList.add('off');
-                label.innerText = "LIGHTS: OFF";
-                label.style.color = "#555";
+                bars[index].classList.remove('off');
             }
 
-            // Trigger Flash Effect
+            // Check if all 4 are down
+            const allDown = breakerStates.every(state => state === true);
+            const label = document.getElementById('breaker-label');
+
+            if (allDown && lightsOn) {
+                // Turn lights off
+                lightsOn = false;
+                label.innerText = "LIGHTS: OFF";
+                label.style.color = "#ff0000";
+                triggerFlash();
+                updateOfficeImage();
+            } else if (!allDown && !lightsOn) {
+                // Turn lights back on
+                lightsOn = true;
+                label.innerText = "LIGHTS: ON";
+                label.style.color = "#888";
+                triggerFlash();
+                updateOfficeImage();
+            }
+        }
+
+        function triggerFlash() {
             const flash = document.getElementById('flash-overlay');
             flash.classList.remove('flashing');
-            void flash.offsetWidth; // Force reflow to restart animation
+            void flash.offsetWidth; 
             flash.classList.add('flashing');
-
-            updateOfficeImage();
         }
 
         // --- Task Logic ---
