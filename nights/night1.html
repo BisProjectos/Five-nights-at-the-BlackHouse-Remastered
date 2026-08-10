@@ -1,0 +1,364 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Night 1 - Five Nights at the Black House</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { 
+            background-color: #000; 
+            color: #fff; 
+            font-family: 'Courier New', Courier, monospace; 
+            overflow: hidden; 
+            user-select: none; 
+        }
+
+        /* --- 1. The Panning Office Background --- */
+        /* Set to 150vw so it can pan left and right. 100% 100% forces JPG and PNG to scale identically */
+        #office-container {
+            position: absolute;
+            top: 0; left: 0;
+            width: 150vw; 
+            height: 100vh;
+            background-size: 100% 100%; 
+            background-position: center;
+            background-repeat: no-repeat;
+            z-index: 1;
+            transition: transform 0.1s ease-out; 
+        }
+
+        /* --- 2. Invisible Door Hitboxes --- */
+        .door-zone {
+            position: absolute;
+            top: 0;
+            width: 10vw; 
+            height: 100vh;
+            z-index: 20;
+            cursor: pointer;
+        }
+        #left-door-zone { left: 0; }
+        #right-door-zone { right: 0; }
+
+        /* --- 3. Hover Bottom UI --- */
+        #bottom-ui {
+            position: absolute;
+            bottom: 0;
+            left: 50%;
+            transform: translateX(-50%) translateY(70%);
+            width: 90vw;
+            max-width: 1200px;
+            height: 250px;
+            background: rgba(10, 10, 10, 0.95);
+            border: 2px solid #444;
+            border-bottom: none;
+            border-radius: 15px 15px 0 0;
+            z-index: 30;
+            display: flex;
+            justify-content: space-between;
+            padding: 20px;
+            transition: transform 0.3s ease 0s;
+        }
+
+        #bottom-ui:hover {
+            transform: translateX(-50%) translateY(0);
+            transition: transform 0.3s ease 0.2s; /* small delay so it doesn't slip away */
+        }
+
+        .ui-section {
+            flex: 1;
+            border-right: 2px solid #333;
+            padding: 0 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        .ui-section:last-child { border-right: none; }
+
+        .section-title {
+            font-size: 1.2rem;
+            color: #888;
+            letter-spacing: 3px;
+            margin-bottom: 15px;
+            text-transform: uppercase;
+        }
+
+        /* --- System Buttons --- */
+        .sys-btn {
+            background: #222;
+            color: #ccc;
+            border: 2px solid #555;
+            padding: 12px;
+            margin-bottom: 10px;
+            font-family: inherit;
+            font-weight: bold;
+            font-size: 0.9rem;
+            cursor: pointer;
+            transition: 0.2s;
+            width: 100%;
+            min-width: 200px;
+            text-align: center;
+        }
+        .sys-btn:hover {
+            background: #444;
+            color: #fff;
+            border-color: #fff;
+        }
+        .sys-btn.completed {
+            color: #00ff00;
+            border-color: #00ff00;
+            pointer-events: none;
+        }
+
+        #btn-cams {
+            background: #2a2a00;
+            border-color: #555500;
+            color: #ffff00;
+        }
+        #btn-cams:hover {
+            background: #444400;
+            border-color: #ffffaa;
+        }
+
+        /* --- Camera Panel --- */
+        #camera-panel {
+            position: fixed;
+            top: 0; left: 0;
+            width: 100vw; height: 100vh;
+            background: #050505;
+            z-index: 50;
+            display: none; /* Hidden by default */
+            justify-content: center;
+            align-items: center;
+            color: #fff;
+        }
+
+        /* --- VHS Overlay --- */
+        #vhs-overlay {
+            position: fixed;
+            top: 0; left: 0; width: 100vw; height: 100vh;
+            pointer-events: none;
+            z-index: 999;
+            mix-blend-mode: overlay;
+        }
+        #vhs-overlay::before {
+            content: '';
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: repeating-linear-gradient(0deg, rgba(0,0,0,0.3), rgba(0,0,0,0.3) 1px, transparent 1px, transparent 3px);
+            opacity: 0.5;
+        }
+        #vhs-overlay::after {
+            content: '';
+            position: absolute;
+            top: -50%; left: -50%; width: 200%; height: 200%;
+            background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E");
+            opacity: 0.1;
+            animation: grainShift 0.2s steps(2) infinite;
+        }
+        @keyframes grainShift {
+            0% { transform: translate(0, 0); }
+            50% { transform: translate(-5%, 5%); }
+            100% { transform: translate(5%, -5%); }
+        }
+
+        /* --- Win Screen Overlay --- */
+        #win-overlay {
+            position: fixed;
+            top: 0; left: 0;
+            width: 100vw; height: 100vh;
+            background: #000;
+            z-index: 1000;
+            display: none;
+            justify-content: center;
+            align-items: center;
+            flex-direction: column;
+            opacity: 0;
+            transition: opacity 2s ease-in-out;
+        }
+        #win-text {
+            font-size: 4rem;
+            color: #fff;
+            text-shadow: 0 0 20px #fff;
+        }
+    </style>
+</head>
+<body>
+
+    <div id="office-container"></div>
+
+    <!-- Invisible Hitboxes -->
+    <div id="left-door-zone" class="door-zone" onclick="toggleDoor('left')"></div>
+    <div id="right-door-zone" class="door-zone" onclick="toggleDoor('right')"></div>
+
+    <!-- Bottom UI -->
+    <div id="bottom-ui">
+        <!-- Left Side: Tasks -->
+        <div class="ui-section">
+            <div class="section-title">Tasks</div>
+            <button id="btn-task1" class="sys-btn" onclick="doTask(1)">Deport Liberals (0/5)</button>
+            <button id="btn-task2" class="sys-btn" onclick="doTask(2)">Send Missiles (0/1)</button>
+        </div>
+        
+        <!-- Middle: Cameras -->
+        <div class="ui-section">
+            <div class="section-title">Cameras</div>
+            <button id="btn-cams" class="sys-btn" onclick="toggleCameras()">VIEW CAMERAS</button>
+            <div style="font-size: 0.8rem; color: #555; margin-top: 10px;">[ Press SPACE ]</div>
+        </div>
+
+        <!-- Right Side: Controls -->
+        <div class="ui-section">
+            <div class="section-title">Controls</div>
+            <button id="btn-lights" class="sys-btn" onclick="toggleLights()">Turn Off Lights</button>
+            <button id="btn-door-left" class="sys-btn" onclick="toggleDoor('left')">Close Left Door</button>
+            <button id="btn-door-right" class="sys-btn" onclick="toggleDoor('right')">Close Right Door</button>
+        </div>
+    </div>
+
+    <!-- Camera Panel -->
+    <div id="camera-panel">
+        <h1>CAMERA SYSTEM OFFLINE</h1>
+        <p style="color: #555; margin-top: 10px;">[ Press SPACE or click button to close ]</p>
+    </div>
+
+    <!-- Win Screen -->
+    <div id="win-overlay">
+        <div id="win-text">6:00 AM</div>
+    </div>
+
+    <!-- VHS Filter -->
+    <div id="vhs-overlay"></div>
+
+    <script>
+        // --- State Variables ---
+        let leftDoorClosed = false;
+        let rightDoorClosed = false;
+        let lightsOn = true;
+        let isCameraOpen = false;
+        
+        let task1Progress = 0;
+        const task1Max = 5;
+        let task2Progress = 0;
+        const task2Max = 1;
+        let tasksCompleted = 0;
+        const totalTasks = 2;
+
+        const officeContainer = document.getElementById('office-container');
+        const maxPan = window.innerWidth * 0.5; // 150vw - 100vw = 50vw
+
+        // --- Panning Logic ---
+        document.addEventListener('mousemove', (e) => {
+            if (isCameraOpen) return;
+            const percentage = e.clientX / window.innerWidth;
+            const panAmount = -(percentage * maxPan);
+            officeContainer.style.transform = `translateX(${panAmount}px)`;
+        });
+
+        // --- Dynamic Office Image Logic ---
+        function updateOfficeImage() {
+            let baseName = "Alldoors-open";
+            
+            // Determine door state
+            if (leftDoorClosed && rightDoorClosed) {
+                baseName = "Alldoors-closed";
+            } else if (leftDoorClosed && !rightDoorClosed) {
+                baseName = "Rightdoor-open"; // Right is open, left is closed
+            } else if (!leftDoorClosed && rightDoorClosed) {
+                baseName = "Leftdoor-open"; // Left is open, right is closed
+            }
+
+            // Determine lights state
+            const lightState = lightsOn ? "Normal" : "Blackout";
+            
+            // Handle the one PNG file
+            const ext = (baseName === "Alldoors-closed" && lightsOn) ? ".png" : ".jpg";
+            
+            // Apply background
+            officeContainer.style.backgroundImage = `url('../GameAssets/${baseName}${lightState}${ext}')`;
+        }
+
+        // --- Door Logic ---
+        function toggleDoor(side) {
+            if (side === 'left') {
+                leftDoorClosed = !leftDoorClosed;
+                document.getElementById('btn-door-left').innerText = leftDoorClosed ? "Open Left Door" : "Close Left Door";
+            } else {
+                rightDoorClosed = !rightDoorClosed;
+                document.getElementById('btn-door-right').innerText = rightDoorClosed ? "Open Right Door" : "Close Right Door";
+            }
+            updateOfficeImage();
+        }
+
+        // --- Lights Logic ---
+        function toggleLights() {
+            lightsOn = !lightsOn;
+            document.getElementById('btn-lights').innerText = lightsOn ? "Turn Off Lights" : "Turn On Lights";
+            updateOfficeImage();
+        }
+
+        // --- Task Logic ---
+        function doTask(taskId) {
+            if (taskId === 1) {
+                if (task1Progress < task1Max) {
+                    task1Progress++;
+                    document.getElementById('btn-task1').innerText = `Deport Liberals (${task1Progress}/${task1Max})`;
+                    if (task1Progress === task1Max) {
+                        document.getElementById('btn-task1').classList.add('completed');
+                        document.getElementById('btn-task1').innerText = "Deportation Complete";
+                        tasksCompleted++;
+                        checkWin();
+                    }
+                }
+            } else if (taskId === 2) {
+                if (task2Progress < task2Max) {
+                    task2Progress++;
+                    document.getElementById('btn-task2').innerText = `Send Missiles (${task2Progress}/${task2Max})`;
+                    if (task2Progress === task2Max) {
+                        document.getElementById('btn-task2').classList.add('completed');
+                        document.getElementById('btn-task2').innerText = "Missiles Launched";
+                        tasksCompleted++;
+                        checkWin();
+                    }
+                }
+            }
+        }
+
+        // --- Camera Logic ---
+        function toggleCameras() {
+            isCameraOpen = !isCameraOpen;
+            const panel = document.getElementById('camera-panel');
+            panel.style.display = isCameraOpen ? 'flex' : 'none';
+        }
+
+        // Spacebar for cameras
+        document.addEventListener('keydown', (e) => {
+            if (e.code === 'Space') {
+                e.preventDefault(); // Prevent scrolling down when hitting space
+                toggleCameras();
+            }
+        });
+
+        // --- Win Condition ---
+        function checkWin() {
+            if (tasksCompleted === totalTasks) {
+                const overlay = document.getElementById('win-overlay');
+                overlay.style.display = 'flex';
+                // Slight delay to let the display:flex take effect before transitioning opacity
+                setTimeout(() => {
+                    overlay.style.opacity = '1';
+                }, 50);
+                
+                // Redirect back to title after 5 seconds
+                setTimeout(() => {
+                    // In the final game, we will call a save function here
+                    window.location.href = '../title.html';
+                }, 5000);
+            }
+        }
+
+        // --- Initialize ---
+        updateOfficeImage();
+    </script>
+</body>
+</html>
