@@ -293,7 +293,8 @@
             playClick();
             const night = getCurrentNight();
             const targetNight = night === 6 ? 1 : night;
-            window.location.href = `nights/night${targetNight}intro.html`;
+            // Updated path to nights/intros/introX.html
+            window.location.href = `nights/intros/intro${targetNight}.html`;
         }
 
         function showNightMenu() {
@@ -312,7 +313,8 @@
             const btn = document.getElementById(`btn-night${night}`);
             if (btn.classList.contains('disabled')) return;
             playClick();
-            window.location.href = `nights/night${night}intro.html`;
+            // Updated path to nights/intros/introX.html
+            window.location.href = `nights/intros/intro${night}.html`;
         }
 
         // --- Save / Import Logic ---
