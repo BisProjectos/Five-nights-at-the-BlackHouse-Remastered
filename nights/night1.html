@@ -15,7 +15,6 @@
         }
 
         /* --- 1. The Panning Office Background --- */
-        /* Set to 150vw so it can pan left and right. 100% 100% forces JPG and PNG to scale identically */
         #office-container {
             position: absolute;
             top: 0; left: 0;
@@ -62,7 +61,7 @@
 
         #bottom-ui:hover {
             transform: translateX(-50%) translateY(0);
-            transition: transform 0.3s ease 0.2s; /* small delay so it doesn't slip away */
+            transition: transform 0.3s ease 0.2s; 
         }
 
         .ui-section {
@@ -120,6 +119,51 @@
             border-color: #ffffaa;
         }
 
+        /* --- Breaker Switch (Lights) --- */
+        .breaker-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 15px;
+            margin-top: 10px;
+        }
+        .breaker-label {
+            font-size: 1rem;
+            font-weight: bold;
+            color: #ffbb00;
+            letter-spacing: 2px;
+        }
+        .breaker-track {
+            width: 50px;
+            height: 90px;
+            background: #111;
+            border: 2px solid #333;
+            border-radius: 5px;
+            position: relative;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+        .breaker-track:hover { background: #1a1a1a; }
+        
+        .breaker-handle {
+            width: 40px;
+            height: 40px;
+            background: #555;
+            border: 2px solid #777;
+            border-radius: 3px;
+            position: absolute;
+            top: 5px;
+            left: 50%;
+            transform: translateX(-50%);
+            transition: top 0.2s ease, background 0.2s;
+        }
+        /* When lights are off, handle moves down */
+        .breaker-track.off .breaker-handle {
+            top: 45px;
+            background: #444;
+            border-color: #666;
+        }
+
         /* --- Camera Panel --- */
         #camera-panel {
             position: fixed;
@@ -127,7 +171,7 @@
             width: 100vw; height: 100vh;
             background: #050505;
             z-index: 50;
-            display: none; /* Hidden by default */
+            display: none; 
             justify-content: center;
             align-items: center;
             color: #fff;
@@ -161,6 +205,23 @@
             50% { transform: translate(-5%, 5%); }
             100% { transform: translate(5%, -5%); }
         }
+
+        /* --- Light Flash Effect --- */
+        #flash-overlay {
+            position: fixed;
+            top: 0; left: 0;
+            width: 100vw; height: 100vh;
+            background: #fff;
+            z-index: 950;
+            opacity: 0;
+            pointer-events: none;
+        }
+        @keyframes lightFlashAnim {
+            0% { opacity: 0; }
+            20% { opacity: 0.8; }
+            100% { opacity: 0; }
+        }
+        .flashing { animation: lightFlashAnim 0.15s ease-out; }
 
         /* --- Win Screen Overlay --- */
         #win-overlay {
@@ -210,9 +271,12 @@
         <!-- Right Side: Controls -->
         <div class="ui-section">
             <div class="section-title">Controls</div>
-            <button id="btn-lights" class="sys-btn" onclick="toggleLights()">Turn Off Lights</button>
-            <button id="btn-door-left" class="sys-btn" onclick="toggleDoor('left')">Close Left Door</button>
-            <button id="btn-door-right" class="sys-btn" onclick="toggleDoor('right')">Close Right Door</button>
+            <div class="breaker-container">
+                <div class="breaker-label" id="breaker-label">LIGHTS: ON</div>
+                <div class="breaker-track" id="breaker-track" onclick="toggleLights()">
+                    <div class="breaker-handle"></div>
+                </div>
+            </div>
         </div>
     </div>
 
@@ -222,15 +286,29 @@
         <p style="color: #555; margin-top: 10px;">[ Press SPACE or click button to close ]</p>
     </div>
 
+    <!-- Flash & VHS Overlays -->
+    <div id="flash-overlay"></div>
+    <div id="vhs-overlay"></div>
+
     <!-- Win Screen -->
     <div id="win-overlay">
         <div id="win-text">6:00 AM</div>
     </div>
 
-    <!-- VHS Filter -->
-    <div id="vhs-overlay"></div>
-
     <script>
+        // --- Preload Images to fix black flash ---
+        const imageNames = [
+            "Alldoors-openNormal", "Alldoors-openBlackout",
+            "Leftdoor-openNormal", "Leftdoor-openBlackout",
+            "Rightdoor-openNormal", "Rightdoor-openBlackout",
+            "Alldoors-closedNormal", "Alldoors-closedBlackout"
+        ];
+        imageNames.forEach(name => {
+            const ext = name === "Alldoors-closedNormal" ? ".png" : ".jpg";
+            const img = new Image();
+            img.src = `../GameAssets/${name}${ext}`;
+        });
+
         // --- State Variables ---
         let leftDoorClosed = false;
         let rightDoorClosed = false;
@@ -245,7 +323,7 @@
         const totalTasks = 2;
 
         const officeContainer = document.getElementById('office-container');
-        const maxPan = window.innerWidth * 0.5; // 150vw - 100vw = 50vw
+        const maxPan = window.innerWidth * 0.5; 
 
         // --- Panning Logic ---
         document.addEventListener('mousemove', (e) => {
@@ -259,22 +337,17 @@
         function updateOfficeImage() {
             let baseName = "Alldoors-open";
             
-            // Determine door state
             if (leftDoorClosed && rightDoorClosed) {
                 baseName = "Alldoors-closed";
             } else if (leftDoorClosed && !rightDoorClosed) {
-                baseName = "Rightdoor-open"; // Right is open, left is closed
+                baseName = "Rightdoor-open"; 
             } else if (!leftDoorClosed && rightDoorClosed) {
-                baseName = "Leftdoor-open"; // Left is open, right is closed
+                baseName = "Leftdoor-open"; 
             }
 
-            // Determine lights state
             const lightState = lightsOn ? "Normal" : "Blackout";
-            
-            // Handle the one PNG file
             const ext = (baseName === "Alldoors-closed" && lightsOn) ? ".png" : ".jpg";
             
-            // Apply background
             officeContainer.style.backgroundImage = `url('../GameAssets/${baseName}${lightState}${ext}')`;
         }
 
@@ -282,10 +355,8 @@
         function toggleDoor(side) {
             if (side === 'left') {
                 leftDoorClosed = !leftDoorClosed;
-                document.getElementById('btn-door-left').innerText = leftDoorClosed ? "Open Left Door" : "Close Left Door";
             } else {
                 rightDoorClosed = !rightDoorClosed;
-                document.getElementById('btn-door-right').innerText = rightDoorClosed ? "Open Right Door" : "Close Right Door";
             }
             updateOfficeImage();
         }
@@ -293,7 +364,26 @@
         // --- Lights Logic ---
         function toggleLights() {
             lightsOn = !lightsOn;
-            document.getElementById('btn-lights').innerText = lightsOn ? "Turn Off Lights" : "Turn On Lights";
+            
+            // Update Breaker UI
+            const track = document.getElementById('breaker-track');
+            const label = document.getElementById('breaker-label');
+            if (lightsOn) {
+                track.classList.remove('off');
+                label.innerText = "LIGHTS: ON";
+                label.style.color = "#ffbb00";
+            } else {
+                track.classList.add('off');
+                label.innerText = "LIGHTS: OFF";
+                label.style.color = "#555";
+            }
+
+            // Trigger Flash Effect
+            const flash = document.getElementById('flash-overlay');
+            flash.classList.remove('flashing');
+            void flash.offsetWidth; // Force reflow to restart animation
+            flash.classList.add('flashing');
+
             updateOfficeImage();
         }
 
@@ -334,7 +424,7 @@
         // Spacebar for cameras
         document.addEventListener('keydown', (e) => {
             if (e.code === 'Space') {
-                e.preventDefault(); // Prevent scrolling down when hitting space
+                e.preventDefault(); 
                 toggleCameras();
             }
         });
@@ -344,14 +434,11 @@
             if (tasksCompleted === totalTasks) {
                 const overlay = document.getElementById('win-overlay');
                 overlay.style.display = 'flex';
-                // Slight delay to let the display:flex take effect before transitioning opacity
                 setTimeout(() => {
                     overlay.style.opacity = '1';
                 }, 50);
                 
-                // Redirect back to title after 5 seconds
                 setTimeout(() => {
-                    // In the final game, we will call a save function here
                     window.location.href = '../title.html';
                 }, 5000);
             }
