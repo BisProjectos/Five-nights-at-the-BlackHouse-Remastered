@@ -45,7 +45,7 @@
             background-size: cover;
             background-position: center;
             opacity: 0;
-            animation: fadeIn 2s forwards, zoomBlur 10s ease-in-out infinite alternate;
+            animation: fadeIn 3s forwards, zoomBlur 10s ease-in-out infinite alternate, glitchFlicker 5s infinite;
             z-index: 1;
         }
 
@@ -57,9 +57,18 @@
             100% { transform: scale(1); filter: blur(0px); }
         }
 
+        @keyframes glitchFlicker {
+            0%, 19%, 21%, 23%, 25%, 54%, 56%, 100% { opacity: 1; }
+            20%, 24%, 55% { opacity: 0.6; }
+            22% { opacity: 0.2; }
+            80% { opacity: 0.8; }
+            81% { opacity: 0.3; }
+            82% { opacity: 1; }
+        }
+
         /* JS adds a class for the random shake */
         #bg-container.shake {
-            animation: fadeIn 2s forwards, zoomBlur 10s ease-in-out infinite alternate, vhsShake 0.4s ease-in-out;
+            animation: fadeIn 3s forwards, zoomBlur 10s ease-in-out infinite alternate, vhsShake 0.4s ease-in-out;
         }
 
         @keyframes vhsShake {
@@ -98,68 +107,71 @@
             100% { transform: translate(5%, -5%); }
         }
 
-        /* --- UI Layer --- */
+        #tracking-line {
+            position: absolute;
+            top: -10%; left: 0; width: 100vw; height: 20px;
+            background: rgba(0, 0, 0, 0.4);
+            box-shadow: 0 0 20px rgba(0,0,0,0.6);
+            pointer-events: none;
+            z-index: 60;
+            animation: rollDown 6s linear infinite;
+        }
+        @keyframes rollDown {
+            0% { top: -10%; }
+            100% { top: 110%; }
+        }
+
+        /* --- UI Layer (Left Aligned) --- */
         #ui-layer {
             position: absolute;
             top: 0; left: 0; width: 100vw; height: 100vh;
             z-index: 100;
+            padding: 50px;
             display: flex;
             flex-direction: column;
-            justify-content: center;
-            align-items: center;
-            text-align: center;
+            justify-content: flex-start;
+            align-items: flex-start; 
         }
 
         h1 {
-            font-size: 4rem;
-            line-height: 1.1;
-            text-shadow: 4px 4px 8px #000, 0 0 20px rgba(255, 255, 255, 0.2);
+            font-size: 3.5rem;
+            line-height: 1.2;
+            text-shadow: 3px 3px 6px #000, 0 0 15px rgba(255, 255, 255, 0.3);
             margin-bottom: 60px;
-            color: #fff;
+            max-width: 600px;
         }
 
         .menu-container {
             display: flex;
             flex-direction: column;
+            align-items: flex-start;
             gap: 20px;
-            align-items: center;
         }
 
         .menu-btn {
-            background: rgba(20, 20, 20, 0.6);
-            backdrop-filter: blur(4px);
+            display: block;
+            background: transparent;
             color: #fff;
-            border: 2px solid rgba(255, 255, 255, 0.3);
-            padding: 15px 40px;
-            font-size: 1.5rem;
+            border: none;
+            font-size: 2rem;
             font-family: inherit;
             cursor: pointer;
-            transition: all 0.2s ease;
+            transition: color 0.2s, text-shadow 0.2s, padding-left 0.2s;
             text-shadow: 2px 2px 4px #000;
-            min-width: 300px;
-            letter-spacing: 2px;
         }
 
         .menu-btn:hover {
-            background: rgba(255, 255, 255, 0.1);
-            border-color: #fff;
-            box-shadow: 0 0 15px rgba(255, 255, 255, 0.2);
-            transform: translateY(-2px);
+            color: #ccc;
+            text-shadow: 0 0 15px #fff;
+            padding-left: 15px; 
         }
 
         .menu-btn.disabled {
-            color: #555;
-            border-color: #333;
-            background: rgba(10, 10, 10, 0.6);
-            cursor: not-allowed;
+            color: #444;
             text-shadow: none;
-        }
-        .menu-btn.disabled:hover {
-            transform: none;
-            box-shadow: none;
+            pointer-events: none;
         }
 
-        /* Hidden by default */
         #night-selection-menu { display: none; }
         
         h2.menu-subtitle {
@@ -170,12 +182,16 @@
 
         .back-btn {
             color: #ff5555;
-            border-color: rgba(255, 85, 85, 0.3);
             margin-top: 10px;
         }
-        .back-btn:hover {
-            border-color: #ff5555;
-            box-shadow: 0 0 15px rgba(255, 85, 85, 0.2);
+
+        #credits-display {
+            margin-top: auto; 
+            font-size: 1.2rem;
+            color: #aaa;
+            opacity: 0; 
+            transition: opacity 0.5s ease-in-out;
+            text-shadow: 1px 1px 2px #000;
         }
     </style>
 </head>
@@ -192,20 +208,23 @@
 
     <div id="bg-container"></div>
     <div id="vhs-overlay"></div>
+    <div id="tracking-line"></div>
 
     <div id="ui-layer">
-        <h1>FIVE NIGHTS<br>AT THE BLACK HOUSE</h1>
+        <h1>Five Nights<br>at the Black House</h1>
 
         <!-- Main Menu -->
         <div id="main-menu" class="menu-container">
             <button class="menu-btn" id="btn-new-game" onclick="startMainGame()">New Game</button>
             <button class="menu-btn" onclick="showNightMenu()">Nights</button>
-            <button class="menu-btn" onclick="playClick()">Credits</button>
+            <button class="menu-btn" onclick="exportSaveFile()">Save Data</button>
+            <button class="menu-btn" onclick="triggerImport()">Import Data</button>
+            <button class="menu-btn" onclick="toggleCredits()">Credits</button>
         </div>
 
         <!-- Night Selection Menu -->
         <div id="night-selection-menu" class="menu-container">
-            <h2 class="menu-subtitle">SELECT NIGHT</h2>
+            <h2 class="menu-subtitle">Select Night</h2>
             <button class="menu-btn" id="btn-night1" onclick="selectNight(1)">Night 1</button>
             <button class="menu-btn disabled" id="btn-night2" onclick="selectNight(2)">Night 2</button>
             <button class="menu-btn disabled" id="btn-night3" onclick="selectNight(3)">Night 3</button>
@@ -213,7 +232,13 @@
             <button class="menu-btn disabled" id="btn-night5" onclick="selectNight(5)">Night 5</button>
             <button class="menu-btn back-btn" onclick="showMainMenu()">[ Back ]</button>
         </div>
+
+        <div id="credits-display">
+            Directed by Solan; made by Gemini and grok.
+        </div>
     </div>
+
+    <input type="file" id="save-file-upload" accept=".save" style="display: none;" onchange="handleFileUpload(event)">
 
     <script>
         // --- Save Data System ---
@@ -233,12 +258,12 @@
         }
 
         function getCurrentNight() {
-            if (gameProgress.Night5done === 1) return 6; // Game beaten
+            if (gameProgress.Night5done === 1) return 6; 
             if (gameProgress.Night4done === 1) return 5;
             if (gameProgress.Night3done === 1) return 4;
             if (gameProgress.Night2done === 1) return 3;
             if (gameProgress.Night1done === 1) return 2;
-            return 1; // Default
+            return 1; 
         }
 
         // --- UI Logic ---
@@ -246,19 +271,16 @@
             const currentNight = getCurrentNight();
             const newGameBtn = document.getElementById('btn-new-game');
 
-            // Update New Game Button Text
             if (currentNight > 1 && currentNight <= 5) {
                 newGameBtn.innerText = `Continue Night ${currentNight}`;
             } else if (currentNight === 6) {
-                newGameBtn.innerText = "New Game+"; // Or "Play Again"
+                newGameBtn.innerText = "New Game+";
             } else {
                 newGameBtn.innerText = "New Game";
             }
 
-            // Unlock Night Buttons
             for (let i = 1; i <= 5; i++) {
                 const btn = document.getElementById(`btn-night${i}`);
-                // Unlock if the previous night is done (or it's night 1)
                 if (i === 1 || gameProgress[`Night${i-1}done`] === 1) {
                     btn.classList.remove('disabled');
                 } else {
@@ -270,9 +292,8 @@
         function startMainGame() {
             playClick();
             const night = getCurrentNight();
-            // If they beat the game, let them replay Night 5 or start over. Let's default to Night 1.
             const targetNight = night === 6 ? 1 : night;
-            window.location.href = `nights/night${targetNight}.html`; // Sends to night1.html, night2.html etc.
+            window.location.href = `nights/night${targetNight}intro.html`;
         }
 
         function showNightMenu() {
@@ -289,48 +310,86 @@
 
         function selectNight(night) {
             const btn = document.getElementById(`btn-night${night}`);
-            if (btn.classList.contains('disabled')) {
-                return; // Do nothing if locked
-            }
+            if (btn.classList.contains('disabled')) return;
             playClick();
-            // Redirect to the night file
-            window.location.href = `nights/night${night}.html`;
+            window.location.href = `nights/night${night}intro.html`;
         }
 
-        // --- Audio Logic ---
+        // --- Save / Import Logic ---
+        function exportSaveFile() {
+            playClick();
+            let saveString = "";
+            for (const key in gameProgress) {
+                saveString += `${key}=${gameProgress[key]} `;
+            }
+            const blob = new Blob([saveString.trim()], { type: 'text/plain' });
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = 'progress.save'; 
+            link.click();
+            URL.revokeObjectURL(url);
+        }
+
+        function triggerImport() {
+            playClick();
+            document.getElementById('save-file-upload').click();
+        }
+
+        function handleFileUpload(event) {
+            const file = event.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    const pairs = e.target.result.split(' ');
+                    pairs.forEach(pair => {
+                        const [key, value] = pair.split('=');
+                        if (gameProgress.hasOwnProperty(key)) {
+                            gameProgress[key] = parseInt(value);
+                        }
+                    });
+                    saveGame();
+                    updateMenuUI();
+                    alert("Save file loaded successfully!");
+                };
+                reader.readAsText(file);
+            }
+            event.target.value = ''; 
+        }
+
+        // --- Audio & Visuals ---
         function playClick() {
             const sfx = document.getElementById('click-sfx');
             sfx.currentTime = 0;
             sfx.play().catch(e => console.log("SFX blocked:", e));
         }
 
-        // --- VHS Shake Logic ---
         function triggerRandomShake() {
             const bg = document.getElementById('bg-container');
             bg.classList.add('shake');
-            setTimeout(() => bg.classList.remove('shake'), 400); // Shake duration
-            
-            // Random time between 4s and 6s
-            const nextShakeIn = Math.random() * 2000 + 4000;
+            setTimeout(() => bg.classList.remove('shake'), 400); 
+            const nextShakeIn = Math.random() * 2000 + 4000; // 4s to 6s
             setTimeout(triggerRandomShake, nextShakeIn);
+        }
+
+        function toggleCredits() {
+            playClick();
+            const credits = document.getElementById('credits-display');
+            credits.style.opacity = credits.style.opacity === '1' ? '0' : '1';
         }
 
         // --- Initialization ---
         document.getElementById('start-screen').addEventListener('click', function() {
-            // Play music
             const music = document.getElementById('bg-music');
-            music.volume = 0.4; // Slightly quiet
+            music.volume = 0.4; 
             music.play().catch(e => console.log("Music block:", e));
 
-            // Fade out start screen
             this.style.opacity = '0';
             setTimeout(() => this.remove(), 1000);
 
-            // Start the random shaking
             setTimeout(triggerRandomShake, 3000);
         }, { once: true });
 
-        // Load data on script load
         loadGame();
         updateMenuUI();
     </script>
